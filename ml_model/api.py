@@ -30,7 +30,7 @@ CORS(app)  # Enable CORS for Laravel to call this API
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Load trained model
+# Load trained model (XGBoost Classifier)
 MODEL_PATH = os.path.join(SCRIPT_DIR, 'xscaffold_xgboost_model.pkl')
 model = joblib.load(MODEL_PATH)
 
@@ -45,19 +45,12 @@ with open(FEATURES_PATH, 'r') as f:
     FEATURE_NAMES = config['features']
     CLASS_NAMES = config['class_names']
 
-# Initialize SHAP explainer
-# Using KernelExplainer for model-agnostic SHAP (works with any sklearn model)
-# We'll use a sample of training data as background
-print("Initializing SHAP explainer...")
-try:
-    # XGBoost is natively supported by SHAP TreeExplainer (fast + exact)
-    explainer = shap.TreeExplainer(model)
-    SHAP_AVAILABLE = True
-except Exception as e:
-    print(f"SHAP initialization warning: {e}")
-    SHAP_AVAILABLE = False
+# SHAP explainer — lazily initialized on first prediction request
+# (XGBoost 3.2 + SHAP TreeExplainer causes a threading deadlock at startup)
+explainer = None
+SHAP_AVAILABLE = True  # Assume available, will be set to False on first-use failure
 
-print(f"✅ Model loaded: {MODEL_PATH}")
+print(f"✅ Model loaded: {os.path.basename(MODEL_PATH)}")
 print(f"✅ Features: {len(FEATURE_NAMES)}")
 print(f"✅ Classes: {CLASS_NAMES}")
 
@@ -221,14 +214,22 @@ def predict():
     }
     
     # Add SHAP explanation if available
+    global explainer, SHAP_AVAILABLE
     if SHAP_AVAILABLE:
         try:
+            if explainer is None:
+                print("Lazily initializing SHAP explainer...")
+                import shap
+                explainer = shap.TreeExplainer(model)
+                
             shap_values = explainer.shap_values(features_scaled)
             explanation = format_shap_explanation(
                 shap_values, FEATURE_NAMES, prediction
             )
             response['explanation'] = explanation
         except Exception as e:
+            print(f"SHAP explicitly failed during request: {e}")
+            SHAP_AVAILABLE = False
             response['explanation'] = {
                 'error': f'SHAP computation failed: {str(e)}',
                 'natural_language': 'Explanation unavailable for this prediction.'
@@ -302,4 +303,4 @@ if __name__ == '__main__':
     print("  POST /batch_predict - Batch predictions")
     print("=" * 50 + "\n")
     
-    app.run(host='0.0.0.0', port=5500, debug=True)
+    app.run(host='0.0.0.0', port=5500, debug=False)

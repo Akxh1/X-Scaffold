@@ -111,12 +111,38 @@ class MockExamController extends Controller
 
         $hasLevelIndicatorData = $performance && $performance->mastery_level;
 
-        // Get random 10 questions with answers
-        $questions = Question::where('module_id', $module->id)
+        // Determine hard question count based on student's mastery level
+        $hardCount = 3; // default when no data
+        if ($performance && $performance->mastery_level) {
+            $hardCount = match($performance->mastery_level) {
+                'advanced'   => 6, // Challenge strong students
+                'proficient' => 4,
+                'developing' => 2,
+                'at_risk'    => 1, // Mostly easy/medium for struggling students
+                default      => 3,
+            };
+        }
+        $easyCount = 10 - $hardCount;
+
+        // Get stratified questions: hard + easy/medium based on mastery
+        $hardQuestions = Question::where('module_id', $module->id)
+            ->where('is_hard', true)
             ->with('answers')
             ->inRandomOrder()
-            ->take(10)
+            ->take($hardCount)
             ->get();
+
+        $easyMediumQuestions = Question::where('module_id', $module->id)
+            ->where(function ($q) {
+                $q->where('is_hard', false)->orWhereNull('is_hard');
+            })
+            ->with('answers')
+            ->inRandomOrder()
+            ->take($easyCount)
+            ->get();
+
+        // Merge and shuffle so hard questions appear in random positions
+        $questions = $hardQuestions->merge($easyMediumQuestions)->shuffle();
 
         if ($questions->count() < 1) {
             return redirect()->route('mock-exam.show', $module)
@@ -220,8 +246,8 @@ class MockExamController extends Controller
                 }
             }
 
-            // Track hard questions (difficulty >= 3)
-            if (($question->difficulty ?? 2) >= 3) {
+            // Track hard questions (is_hard flag)
+            if ($question->is_hard) {
                 $hardTotal++;
                 if ($isCorrect) {
                     $hardCorrect++;

@@ -111,13 +111,26 @@ class LevelIndicatorExamController extends Controller
                 ->with('error', 'Maximum attempts reached for this module.');
         }
         
-        // Get random 10 questions with answers
-        $questions = Question::where('module_id', $module->id)
+        // Get stratified questions: 3 hard + 7 easy/medium
+        $hardQuestions = Question::where('module_id', $module->id)
+            ->where('is_hard', true)
             ->with('answers')
             ->inRandomOrder()
-            ->take(10)
+            ->take(3)
             ->get();
-        
+
+        $easyMediumQuestions = Question::where('module_id', $module->id)
+            ->where(function ($q) {
+                $q->where('is_hard', false)->orWhereNull('is_hard');
+            })
+            ->with('answers')
+            ->inRandomOrder()
+            ->take(7)
+            ->get();
+
+        // Merge and shuffle so hard questions appear in random positions
+        $questions = $hardQuestions->merge($easyMediumQuestions)->shuffle();
+
         if ($questions->count() < 1) {
             return redirect()->route('level-indicator.show', $module)
                 ->with('error', 'No questions available for this module.');
@@ -218,8 +231,8 @@ class LevelIndicatorExamController extends Controller
                 }
             }
             
-            // Track hard questions (difficulty >= 3)
-            if (($question->difficulty ?? 2) >= 3) {
+            // Track hard questions (is_hard flag)
+            if ($question->is_hard) {
                 $hardTotal++;
                 if ($isCorrect) {
                     $hardCorrect++;
