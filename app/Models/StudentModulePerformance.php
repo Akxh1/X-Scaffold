@@ -36,6 +36,7 @@ class StudentModulePerformance extends Model
         'xai_explanation',
         'top_positive_factors',
         'top_negative_factors',
+        'prediction_source',
     ];
 
     protected $casts = [

@@ -45,10 +45,17 @@ with open(FEATURES_PATH, 'r') as f:
     FEATURE_NAMES = config['features']
     CLASS_NAMES = config['class_names']
 
-# SHAP explainer — lazily initialized on first prediction request
-# (XGBoost 3.2 + SHAP TreeExplainer causes a threading deadlock at startup)
-explainer = None
-SHAP_AVAILABLE = True  # Assume available, will be set to False on first-use failure
+# Initialize SHAP explainer
+# XGBoost is natively supported by SHAP TreeExplainer (fast + exact)
+print("Initializing SHAP TreeExplainer...")
+try:
+    explainer = shap.TreeExplainer(model)
+    SHAP_AVAILABLE = True
+    print("✅ SHAP TreeExplainer ready")
+except Exception as e:
+    print(f"⚠️ SHAP initialization failed: {e}")
+    explainer = None
+    SHAP_AVAILABLE = False
 
 print(f"✅ Model loaded: {os.path.basename(MODEL_PATH)}")
 print(f"✅ Features: {len(FEATURE_NAMES)}")
@@ -214,22 +221,14 @@ def predict():
     }
     
     # Add SHAP explanation if available
-    global explainer, SHAP_AVAILABLE
     if SHAP_AVAILABLE:
         try:
-            if explainer is None:
-                print("Lazily initializing SHAP explainer...")
-                import shap
-                explainer = shap.TreeExplainer(model)
-                
             shap_values = explainer.shap_values(features_scaled)
             explanation = format_shap_explanation(
                 shap_values, FEATURE_NAMES, prediction
             )
             response['explanation'] = explanation
         except Exception as e:
-            print(f"SHAP explicitly failed during request: {e}")
-            SHAP_AVAILABLE = False
             response['explanation'] = {
                 'error': f'SHAP computation failed: {str(e)}',
                 'natural_language': 'Explanation unavailable for this prediction.'

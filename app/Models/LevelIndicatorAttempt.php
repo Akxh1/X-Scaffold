@@ -44,6 +44,8 @@ class LevelIndicatorAttempt extends Model
         'xai_explanation',
         'top_positive_factors',
         'top_negative_factors',
+        // Prediction metadata
+        'prediction_source',
         // Raw data
         'question_ids',
         'answers_data',
