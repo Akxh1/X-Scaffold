@@ -3,7 +3,6 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TestExamController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Middleware\IsTeacher;
 use App\Http\Controllers\Teacher\QuestionController;
 use App\Http\Controllers\HintController;
 use App\Http\Controllers\RiskPredictorController;
@@ -11,48 +10,57 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\LevelIndicatorExamController;
 use App\Http\Controllers\MockExamController;
+use App\Http\Controllers\NotificationController;
 
-
-
-Route::post('/generate-hint', [HintController::class, 'generate']);
-
+// ═══════════════════════════════════════════════════════════════════
+// 1. PUBLIC ROUTES — No authentication required
+// ═══════════════════════════════════════════════════════════════════
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::middleware(['auth', IsTeacher::class])
-    ->prefix('teacher')
-    ->name('teacher.')
-    ->group(function () {
-        Route::get('questions/upload', [QuestionController::class, 'showUploadForm'])->name('questions.upload');
-        Route::post('questions/preview', [QuestionController::class, 'previewUpload'])->name('questions.preview');
-        Route::post('questions/store', [QuestionController::class, 'storeUploaded'])->name('questions.store');
-    });
-
-// web.php
+Route::get('/Test-Exam', [TestExamController::class, 'index'])->name('test-exam.index');
+Route::post('/generate-hint', [HintController::class, 'generate']);
 Route::get('/risk-predictor', [RiskPredictorController::class, 'index'])->name('risk.predictor');
 Route::post('/risk-predictor/upload', [RiskPredictorController::class, 'upload'])->name('risk.predictor.upload');
 
-
-Route::get('/Test-Exam', [TestExamController::class,'index'])->name('test-exam.index');
-
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
-Route::get('/dashboard/student', [DashboardController::class, 'studentDashboard'])
-    ->middleware(['auth', 'verified'])
-    ->name('student.dashboard');
-
-// Module Detail Page (for students)
-Route::get('/module/{module}', [DashboardController::class, 'showModule'])
-    ->middleware(['auth', 'verified'])
-    ->name('student.module.show');
-
-// ================================================================
-// Level Indicator Exam Routes
-// ================================================================
+// ═══════════════════════════════════════════════════════════════════
+// 2. SHARED AUTH ROUTES — Any authenticated user
+// ═══════════════════════════════════════════════════════════════════
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Profile
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Student warnings (accessible by the student themselves)
+    Route::get('/student/warnings', [StudentController::class, 'getWarnings']);
+});
+
+// Notification API — any authenticated user
+Route::middleware('auth')->group(function () {
+    Route::get('/api/notifications', [NotificationController::class, 'getMyNotifications']);
+    Route::get('/api/notifications/unread-count', [NotificationController::class, 'getUnreadCount']);
+    Route::post('/api/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/api/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::post('/api/notifications/send-warning', [NotificationController::class, 'sendWarning']);
+    Route::get('/api/students/dropdown', [NotificationController::class, 'getStudentsForDropdown']);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. STUDENT ROUTES — role:student (admin can also access)
+// ═══════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
+
+    // Student Dashboard
+    Route::get('/dashboard/student', [DashboardController::class, 'studentDashboard'])
+        ->name('student.dashboard');
+
+    // Module Detail Page (student view)
+    Route::get('/module/{module}', [DashboardController::class, 'showModule'])
+        ->name('student.module.show');
+
+    // Level Indicator Exam
     Route::get('/module/{module}/level-indicator', [LevelIndicatorExamController::class, 'show'])
         ->name('level-indicator.show');
     Route::get('/module/{module}/level-indicator/start', [LevelIndicatorExamController::class, 'start'])
@@ -61,12 +69,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('level-indicator.submit');
     Route::get('/module/{module}/level-indicator/results/{attempt}', [LevelIndicatorExamController::class, 'results'])
         ->name('level-indicator.results');
-});
 
-// ================================================================
-// Mock Exam Routes (Unlimited Practice with Adaptive Hints)
-// ================================================================
-Route::middleware(['auth', 'verified'])->group(function () {
+    // Mock Exam (Unlimited Practice with Adaptive Hints)
     Route::get('/module/{module}/mock-exam', [MockExamController::class, 'show'])
         ->name('mock-exam.show');
     Route::get('/module/{module}/mock-exam/start', [MockExamController::class, 'start'])
@@ -77,75 +81,53 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('mock-exam.results');
 });
 
-// Student Detail Page (for instructors)
-Route::get('/dashboard/student/{student}', [DashboardController::class, 'showStudent'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.student.show');
+// ═══════════════════════════════════════════════════════════════════
+// 4. INSTRUCTOR ROUTES — role:teacher (admin can also access)
+// ═══════════════════════════════════════════════════════════════════
+Route::middleware(['auth', 'verified', 'role:teacher'])->group(function () {
 
-// Send Warning Notification
-Route::post('/dashboard/student/{student}/warn', [DashboardController::class, 'sendWarning'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.student.warn');
+    // Instructor Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
 
-// Generate AI Insights
-Route::post('/dashboard/student/{student}/generate-insights', [DashboardController::class, 'generateAIInsights'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.student.insights');
+    // Student Detail Page
+    Route::get('/dashboard/student/{student}', [DashboardController::class, 'showStudent'])
+        ->name('instructor.student.show');
 
-// Module Settings (for instructors)
-Route::get('/dashboard/module/{module}/settings', [DashboardController::class, 'showModuleSettings'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.settings');
+    // Send Warning Notification
+    Route::post('/dashboard/student/{student}/warn', [DashboardController::class, 'sendWarning'])
+        ->name('instructor.student.warn');
 
-Route::post('/dashboard/module/{module}/settings', [DashboardController::class, 'updateModuleSettings'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.settings.update');
+    // Generate AI Insights
+    Route::post('/dashboard/student/{student}/generate-insights', [DashboardController::class, 'generateAIInsights'])
+        ->name('instructor.student.insights');
 
-// Question Management (CRUD + Import)
-Route::post('/dashboard/module/{module}/questions', [DashboardController::class, 'storeQuestion'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.questions.store');
+    // Module Settings
+    Route::get('/dashboard/module/{module}/settings', [DashboardController::class, 'showModuleSettings'])
+        ->name('instructor.module.settings');
+    Route::post('/dashboard/module/{module}/settings', [DashboardController::class, 'updateModuleSettings'])
+        ->name('instructor.module.settings.update');
 
-Route::put('/dashboard/module/{module}/questions/{question}', [DashboardController::class, 'updateQuestion'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.questions.update');
+    // Question Management (CRUD + Import)
+    Route::post('/dashboard/module/{module}/questions', [DashboardController::class, 'storeQuestion'])
+        ->name('instructor.module.questions.store');
+    Route::put('/dashboard/module/{module}/questions/{question}', [DashboardController::class, 'updateQuestion'])
+        ->name('instructor.module.questions.update');
+    Route::delete('/dashboard/module/{module}/questions/{question}', [DashboardController::class, 'deleteQuestion'])
+        ->name('instructor.module.questions.delete');
+    Route::post('/dashboard/module/{module}/questions/import', [DashboardController::class, 'importQuestions'])
+        ->name('instructor.module.questions.import');
+    Route::get('/dashboard/module/questions/template', [DashboardController::class, 'downloadQuestionTemplate'])
+        ->name('instructor.module.questions.template');
 
-Route::delete('/dashboard/module/{module}/questions/{question}', [DashboardController::class, 'deleteQuestion'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.questions.delete');
+    // Export pipeline data as CSV (for ML retraining)
+    Route::get('/dashboard/export-data', [DashboardController::class, 'exportData'])
+        ->name('instructor.export.data');
 
-Route::post('/dashboard/module/{module}/questions/import', [DashboardController::class, 'importQuestions'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.questions.import');
-
-Route::get('/dashboard/module/questions/template', [DashboardController::class, 'downloadQuestionTemplate'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.module.questions.template');
-
-// Export pipeline data as CSV (for ML retraining)
-Route::get('/dashboard/export-data', [DashboardController::class, 'exportData'])
-    ->middleware(['auth', 'verified'])
-    ->name('instructor.export.data');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
-Route::get('/student/warnings', [StudentController::class, 'getWarnings'])
-    ->middleware('auth');
-
-// Notification API Routes
-use App\Http\Controllers\NotificationController;
-
-Route::middleware('auth')->group(function () {
-    Route::get('/api/notifications', [NotificationController::class, 'getMyNotifications']);
-    Route::get('/api/notifications/unread-count', [NotificationController::class, 'getUnreadCount']);
-    Route::post('/api/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('/api/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
-    Route::post('/api/notifications/send-warning', [NotificationController::class, 'sendWarning']);
-    Route::get('/api/students/dropdown', [NotificationController::class, 'getStudentsForDropdown']);
+    // Old teacher question upload routes
+    Route::get('teacher/questions/upload', [QuestionController::class, 'showUploadForm'])->name('teacher.questions.upload');
+    Route::post('teacher/questions/preview', [QuestionController::class, 'previewUpload'])->name('teacher.questions.preview');
+    Route::post('teacher/questions/store', [QuestionController::class, 'storeUploaded'])->name('teacher.questions.store');
 });
 
 
