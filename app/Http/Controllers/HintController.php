@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Student;
 use App\Models\StudentModulePerformance;
+use App\Models\Question;
 use App\Services\MLPredictionService;
 
 class HintController extends Controller
@@ -32,6 +33,7 @@ class HintController extends Controller
         // --- 1. Get Inputs ---
         $question = $request->input('question_text');
         $moduleId = $request->input('module_id');
+        $questionId = $request->input('question_id');
         $isDiagnostic = $request->input('is_diagnostic', false);
 
         // --- 2. Validate Input ---
@@ -72,7 +74,17 @@ class HintController extends Controller
         ]);
 
         // Retry up to 3 times with backoff for 429 rate limits
-        $maxTokens = $hintMode === 'generic' ? 80 : ($hintMode === 'personalized' ? 400 : 200);
+        // Token budget: L1=80, L2=120, L3=200, L4=350, generic=80, diagnostic=200
+        $hintLevel = isset($xaiData) ? ($xaiData['hint_level'] ?? 3) : 3;
+        $maxTokens = match(true) {
+            $hintMode === 'generic' => 80,
+            $hintMode === 'diagnostic' => 200,
+            $hintLevel === 1 => 80,
+            $hintLevel === 2 => 120,
+            $hintLevel === 3 => 200,
+            $hintLevel === 4 => 350,
+            default => 200,
+        };
 
         $response = null;
         $maxRetries = 3;
@@ -142,10 +154,23 @@ class HintController extends Controller
         // --- 6. Clean and Return ---
         $cleanedText = $this->cleanHintOutput($text);
 
+        // For At Risk (L4): include correct answer directly in the hint
+        $correctAnswer = null;
+        if ($questionId && isset($xaiData) && ($xaiData['hint_level'] ?? 0) === 4) {
+            $correctAnswer = $this->getCorrectAnswer($questionId);
+            if ($correctAnswer) {
+                $cleanedText .= '<div class="mt-4 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-lg">'
+                    . '<p class="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1"><i class="fas fa-check-circle mr-1"></i>Answer</p>'
+                    . '<p class="text-sm font-medium text-emerald-800 dark:text-emerald-300">' . e($correctAnswer) . '</p>'
+                    . '</div>';
+            }
+        }
+
         return response()->json([
             'hint' => $cleanedText,
             'is_fallback' => false,
             'hint_mode' => $hintMode,
+            'hint_level' => isset($xaiData) ? ($xaiData['hint_level'] ?? null) : null,
             'student_profile' => $studentProfile,
         ]);
     }
@@ -184,7 +209,7 @@ class HintController extends Controller
 
         // --- Real data found ---
         $hint_level = $this->masteryNameToHintLevel($performance->mastery_level);
-        $level_names = [1 => 'Proficient (L1)', 2 => 'Developing (L2)', 3 => 'Struggling (L3)'];
+        $level_names = [1 => 'Advanced', 2 => 'Proficient', 3 => 'Developing', 4 => 'At Risk'];
 
         // Build XAI analysis string for prompt
         $xai_analysis = '';
@@ -280,6 +305,7 @@ Generate the hint now:
         $profile = $xaiData['student_profile'];
         $performance = $xaiData['performance'];
         $studentLevel = $xaiData['student_level'];
+        $hintLevel = $xaiData['hint_level'];
         $xaiAnalysis = $xaiData['xai_analysis'];
 
         // Build detailed behavioral profile for the LLM
@@ -303,61 +329,36 @@ Generate the hint now:
         $strengths = $profile['top_strengths'] ?? 'Not available';
         $weaknesses = $profile['top_weaknesses'] ?? 'Not available';
 
+        // Select the scaffolding strategy for this level
+        $strategy = $this->getScaffoldingStrategy($hintLevel);
+
         return "
-You are an expert, empathetic AI tutor integrated into a Learning Management System (LMS).
-You implement 'Adaptive Scaffolding' by tailoring hints to each student's ML-predicted learning level.
-You have access to rich diagnostic data from their Level Indicator Exam.
+You are an expert, empathetic tutor. You give structured, visually clear hints in clean HTML.
 
-=== STUDENT PROFILE (from ML Prediction + SHAP Analysis) ===
-- Predicted Level: {$studentLevel}
-- Learning Mastery Score: {$profile['lms_score']}/100
-- ML Prediction Confidence: {$profile['ml_confidence']}%
-- SHAP Strengths: {$strengths}
-- SHAP Weaknesses: {$weaknesses}
-- XAI Analysis: {$xaiAnalysis}
+=== STUDENT PROFILE ===
+- Level: {$studentLevel}
+- LMS: {$profile['lms_score']}/100 | Score: {$profile['score_percentage']}%
+- Strengths: {$strengths}
+- Weaknesses: {$weaknesses}
+- XAI: {$xaiAnalysis}
 
-=== BEHAVIORAL DATA (11 Features) ===
+=== BEHAVIORAL DATA ===
 {$behavioralContext}
 
 === QUESTION ===
 \"{$question}\"
 
-=== ADAPTIVE SCAFFOLDING STRATEGY ===
+=== YOUR TASK ===
+{$strategy}
 
-**For Proficient (L1) Students — BULLET FORMAT:**
-Output EXACTLY 2 bullet points:
-• Bullet 1: A Socratic question that makes them think deeper
-• Bullet 2: A brief positive reference to their strength area
-Keep under 30 words. No steps, no explanations. Trust their ability.
-Format: HTML unordered list (<ul><li>).
+=== STRICT RULES ===
+1. Output ONLY clean HTML tags: <p>, <ul>, <ol>, <li>, <strong>, <em>. NO markdown.
+2. NEVER use em dashes, en dashes, or the characters: \xE2\x80\x94 or \xE2\x80\x93. Use periods or colons instead.
+3. NEVER output a wall of text. Always use lists or short paragraphs.
+4. Reference student data naturally. Never say \"AI\", \"SHAP\", or \"model\".
+5. Keep a warm, encouraging tone throughout.
 
-**For Developing (L2) Students — NUMBERED STEPS FORMAT:**
-Output EXACTLY 3-5 numbered steps:
-1. Remind them of the key concept needed
-2. Point out a common mistake to avoid
-3. Give the FIRST concrete step to approach this (not the answer)
-4. (Optional) Reference a behavioral pattern to improve
-5. (Optional) Brief encouragement
-Keep each step to ONE sentence. Max 80 words total.
-Format: HTML ordered list (<ol><li>).
-
-**For Struggling (L3) Students — WORKED EXAMPLE FORMAT:**
-Output a short introduction sentence, then 3-5 numbered steps where each step shows what to do AND why:
-1. Step 1: [what to do] — [brief reason why]
-2. Step 2: [what to do] — [brief reason why]
-... and so on.
-End with ONE sentence of encouragement.
-Use simple language and analogies where possible. Max 120 words.
-Format: HTML: <p> for intro, <ol><li> for steps, <p><em> for encouragement.
-
-=== OUTPUT REQUIREMENTS ===
-1. **HTML Format Only**: Use <p>, <ul>, <ol>, <li>, <strong>, <em> tags. NO markdown (**, \`\`\`, #, etc.)
-2. **Structured Layout**: Use bullet points or numbered lists as specified above — NEVER output a wall of text
-3. **Personalized Tone**: Weave in references to their specific data naturally (e.g., \"Given your strong score...\")
-4. **No Meta-Commentary**: Don't mention \"as an AI\", \"your SHAP values\", or technical model terms
-5. **Concise**: Respect the word limits strictly
-
-Generate the personalized hint now:
+Generate the hint now:
 ";
     }
 
@@ -472,10 +473,69 @@ Generate the personalized hint now:
     {
         return match($masteryLevel) {
             'advanced' => 1,
-            'proficient' => 1,
-            'developing' => 2,
-            'at_risk' => 3,
-            default => 2
+            'proficient' => 2,
+            'developing' => 3,
+            'at_risk' => 4,
+            default => 3
+        };
+    }
+
+    /**
+     * Get the scaffolding strategy prompt text for a given hint level.
+     */
+    protected function getScaffoldingStrategy(int $level): string
+    {
+        return match($level) {
+            // L1: Advanced — Socratic, minimal
+            1 => "
+Produce a SINGLE Socratic question (max 20 words) that pushes the student to think deeper.
+Wrap it in: <p><strong>[question]</strong></p>
+Then add ONE sentence of acknowledgment referencing a strength.
+Wrap it in: <p><em>[acknowledgment]</em></p>
+Total: max 2 HTML elements. Do NOT give any steps or explanations.",
+
+            // L2: Proficient — Guiding bullets
+            2 => "
+Produce EXACTLY 2 bullet points:
+<ul>
+<li><strong>Think about:</strong> [A guiding question that nudges toward the right approach]</li>
+<li><strong>Key concept:</strong> [The specific topic or formula to revisit]</li>
+</ul>
+Max 40 words total. Do NOT reveal the answer or give step-by-step solutions.",
+
+            // L3: Developing — Numbered steps
+            3 => "
+Produce a structured hint with EXACTLY 3 numbered steps:
+<ol>
+<li><strong>Recall:</strong> [The key concept or definition needed]</li>
+<li><strong>Watch out:</strong> [A common mistake to avoid]</li>
+<li><strong>Start here:</strong> [The first concrete action to take, without solving it]</li>
+</ol>
+Then add one line: <p><em>[brief encouragement]</em></p>
+Max 80 words. Use simple, clear language.",
+
+            // L4: At Risk — Full concept explanation with answer
+            4 => "
+Produce a comprehensive, easy-to-follow hint in this exact structure:
+
+<p><strong>Concept:</strong> [Explain the underlying concept in 2-3 simple sentences using everyday language or analogies]</p>
+
+<p><strong>How to solve this:</strong></p>
+<ol>
+<li>[Step 1: what to do and why, in simple words]</li>
+<li>[Step 2: what to do and why]</li>
+<li>[Step 3: what to do and why]</li>
+</ol>
+
+<p><strong>The answer:</strong> [State the correct answer clearly with a one-sentence explanation of why it is correct]</p>
+
+<p><em>[Warm encouragement referencing their effort]</em></p>
+
+Max 200 words. Use the simplest possible language. Write as if explaining to someone encountering this topic for the first time.",
+
+            default => "
+Produce 3 numbered steps as an HTML ordered list.
+Max 80 words. Use clear, structured HTML.",
         };
     }
 
@@ -520,29 +580,35 @@ Generate the personalized hint now:
             ];
         }
 
-        // Format based on hint level
+        // Format based on hint level (4 tiers)
         return match($hintLevel) {
-            // L1 (Proficient): 2 bullet points
-            1 => '<ul>'
-                . '<li>' . $matched['question'] . '</li>'
-                . '<li>Think about <strong>' . $matched['concept'] . '</strong> — you know this well.</li>'
+            // L1 (Advanced): Socratic question only
+            1 => '<p><strong>' . $matched['question'] . '</strong></p>'
+                . '<p><em>You have the skills for this. Trust your knowledge.</em></p>',
+
+            // L2 (Proficient): 2 guiding bullets
+            2 => '<ul>'
+                . '<li><strong>Think about:</strong> ' . $matched['question'] . '</li>'
+                . '<li><strong>Key concept:</strong> ' . $matched['concept'] . '</li>'
                 . '</ul>',
 
-            // L3 (Struggling): Worked steps with intro + encouragement
-            3 => '<p>Let\'s work through this together:</p>'
+            // L4 (At Risk): Full walkthrough with answer
+            4 => '<p><strong>Concept:</strong> This question is about <strong>' . $matched['concept'] . '</strong>.</p>'
+                . '<p><strong>How to solve this:</strong></p>'
                 . '<ol>'
                 . '<li>' . $matched['step1'] . '</li>'
                 . '<li>' . $matched['step2'] . '</li>'
                 . '<li>' . $matched['step3'] . '</li>'
                 . '</ol>'
-                . '<p><em>Take it one step at a time — you\'re making progress!</em></p>',
+                . '<p><em>Take it one step at a time. You are making progress!</em></p>',
 
-            // L2 (Developing): 3 numbered steps
+            // L3 (Developing): 3 numbered steps
             default => '<ol>'
-                . '<li>Recall the key concept: <strong>' . $matched['concept'] . '</strong></li>'
-                . '<li>' . $matched['step1'] . '</li>'
-                . '<li>' . $matched['step2'] . '</li>'
-                . '</ol>',
+                . '<li><strong>Recall:</strong> ' . $matched['concept'] . '</li>'
+                . '<li><strong>Watch out:</strong> ' . $matched['step1'] . '</li>'
+                . '<li><strong>Start here:</strong> ' . $matched['step2'] . '</li>'
+                . '</ol>'
+                . '<p><em>Keep going, you are building understanding!</em></p>',
         };
     }
 
@@ -553,6 +619,10 @@ Generate the personalized hint now:
     {
         // Strip code fence wrappers
         $text = preg_replace('/^```html\s*|\s*```$/s', '', $text);
+
+        // Remove em dashes and en dashes (AI-style punctuation)
+        $text = str_replace(['—', '–'], ['. ', '. '], $text);
+        $text = preg_replace('/ \. /', '. ', $text); // clean double spaces
 
         // Convert markdown bold/italic to HTML
         $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
@@ -577,5 +647,28 @@ Generate the personalized hint now:
         $text = preg_replace('/<\/ul>\s*<\/ul>/', '</ul>', $text);
 
         return trim($text);
+    }
+
+    /**
+     * Look up the correct answer for a given question.
+     */
+    protected function getCorrectAnswer(int $questionId): ?string
+    {
+        $question = Question::with('answers')->find($questionId);
+        if (!$question) return null;
+
+        if ($question->type === 'true_false') {
+            $correct = $question->answers->first(fn($a) => $a->is_correct);
+            return $correct ? ($correct->answer_text ?: 'True') : null;
+        }
+
+        if ($question->type === 'fill_in_blank') {
+            $correct = $question->answers->first(fn($a) => $a->is_correct);
+            return $correct?->answer_text;
+        }
+
+        // MCQ
+        $correct = $question->answers->first(fn($a) => $a->is_correct);
+        return $correct?->answer_text;
     }
 }

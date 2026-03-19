@@ -1,3 +1,19 @@
+<style>
+    .hint-styled-content ol { counter-reset: hint-step; list-style: none; padding-left: 0; margin: 0; }
+    .hint-styled-content ol > li { counter-increment: hint-step; position: relative; padding: 0.75rem 0.75rem 0.75rem 2.5rem; margin-bottom: 0.5rem; background: #f8fafc; border-left: 3px solid #8b5cf6; border-radius: 0.5rem; font-size: 0.875rem; line-height: 1.5; }
+    .dark .hint-styled-content ol > li { background: rgba(51, 65, 85, 0.3); border-left-color: #a78bfa; }
+    .hint-styled-content ol > li::before { content: counter(hint-step); position: absolute; left: 0.65rem; top: 0.75rem; width: 1.25rem; height: 1.25rem; background: #8b5cf6; color: white; border-radius: 50%; font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+    .hint-styled-content ul { list-style: none; padding-left: 0; margin: 0; }
+    .hint-styled-content ul > li { position: relative; padding: 0.625rem 0.75rem 0.625rem 1.75rem; margin-bottom: 0.375rem; background: #f8fafc; border-radius: 0.5rem; font-size: 0.875rem; line-height: 1.5; }
+    .dark .hint-styled-content ul > li { background: rgba(51, 65, 85, 0.3); }
+    .hint-styled-content ul > li::before { content: "\2022"; position: absolute; left: 0.65rem; top: 0.5rem; color: #8b5cf6; font-size: 1.25rem; font-weight: 700; }
+    .hint-styled-content p { margin-bottom: 0.75rem; font-size: 0.875rem; line-height: 1.6; }
+    .hint-styled-content p:last-child { margin-bottom: 0; }
+    .hint-styled-content em { color: #7c3aed; font-style: italic; }
+    .dark .hint-styled-content em { color: #c4b5fd; }
+    .hint-styled-content strong { color: #1e293b; }
+    .dark .hint-styled-content strong { color: #e2e8f0; }
+</style>
 <x-app-layout>
     {{-- Mock Exam - Main Exam Interface --}}
     <div x-data="mockExam()"
@@ -248,6 +264,10 @@
                                     <p class="text-white/70 text-xs"
                                        x-text="hintMode === 'personalized' ? 'Powered by your Level Indicator analysis' : (hintMode === 'generic' ? 'Complete Level Indicator for personalized hints' : 'Diagnostic mode')"></p>
                                 </div>
+                                <template x-if="hintLevel && hintMode === 'personalized'">
+                                    <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-white/20 text-white"
+                                          x-text="hintLevel === 1 ? 'Socratic' : (hintLevel === 2 ? 'Guided' : (hintLevel === 3 ? 'Step-by-Step' : 'Full Support'))"></span>
+                                </template>
                             </div>
                             <button @click="showHint = false" class="text-white/70 hover:text-white transition p-2">
                                 <i class="fas fa-times text-lg"></i>
@@ -343,7 +363,7 @@
 
                         {{-- Hint Content --}}
                         <template x-if="!hintLoading">
-                            <div class="prose prose-sm dark:prose-invert max-w-none"
+                            <div class="hint-styled-content prose prose-sm dark:prose-invert max-w-none"
                                  x-html="currentHint || '<p class=\'text-slate-400\'>No hint available.</p>'"></div>
                         </template>
                     </div>
@@ -351,7 +371,7 @@
                     {{-- Modal Footer --}}
                     <div class="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
                         <span class="text-[10px] text-slate-400 uppercase tracking-wider"
-                              x-text="hintMode === 'personalized' ? 'Adaptive Scaffolding • SHAP + LLM' : (hintMode === 'generic' ? 'Generic Mode • No profile data' : 'Diagnostic Mode')"></span>
+                              x-text="hintMode === 'personalized' ? ('Adaptive Scaffolding • ' + (hintLevel === 1 ? 'Socratic' : (hintLevel === 2 ? 'Guided' : (hintLevel === 3 ? 'Step-by-Step' : 'Full Support')))) : (hintMode === 'generic' ? 'Generic Mode • No profile data' : 'Diagnostic Mode')"></span>
                         <button @click="showHint = false"
                                 class="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-300 dark:hover:bg-slate-600 transition">
                             Close
@@ -382,6 +402,7 @@
                 studentProfile: null,
                 elapsedTime: 0,
                 timerInterval: null,
+                hintLevel: null,
 
                 // ================================================================
                 // 11-FEATURE TRACKING SYSTEM (identical to Level Indicator)
@@ -501,6 +522,7 @@
                     this.hintMode = 'generic';
                     this.isFallbackHint = false;
                     this.studentProfile = null;
+                    this.hintLevel = null;
 
                     try {
                         const response = await fetch('/generate-hint', {
@@ -511,6 +533,7 @@
                             },
                             body: JSON.stringify({
                                 question_text: this.questions[this.current].question_text,
+                                question_id: this.questions[this.current].id,
                                 module_id: this.moduleId,
                                 is_diagnostic: false
                             })
@@ -520,6 +543,7 @@
                         this.hintMode = data.hint_mode || 'generic';
                         this.isFallbackHint = data.is_fallback === true;
                         this.studentProfile = data.student_profile || null;
+                        this.hintLevel = data.hint_level || null;
                     } catch {
                         this.currentHint = "Hint couldn't be generated.";
                         this.isFallbackHint = true;
