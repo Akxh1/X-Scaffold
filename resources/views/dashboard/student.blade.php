@@ -66,29 +66,15 @@
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Assessments Done</p>
                 </div>
 
-                {{-- Overall Classification --}}
-                @php
-                    $overallClassification = null;
-                    if ($completedModules > 0) {
-                        // Find dominant classification
-                        $levels = $modules->where('has_performance', true)->pluck('mastery_level')->countBy();
-                        $overallClassification = $levels->keys()->first();
-                    }
-                    $classColors = [
-                        'advanced' => 'text-emerald-600 dark:text-emerald-400',
-                        'proficient' => 'text-blue-600 dark:text-blue-400',
-                        'developing' => 'text-amber-600 dark:text-amber-400',
-                        'at_risk' => 'text-red-600 dark:text-red-400',
-                    ];
-                @endphp
+                {{-- Average LMS --}}
                 <div class="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl p-5 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all">
                     <div class="flex items-center gap-3 mb-3">
                         <div class="p-2 bg-purple-100 dark:bg-purple-500/10 rounded-xl">
                             <i class="fas fa-brain text-purple-600 dark:text-purple-400"></i>
                         </div>
                     </div>
-                    <p class="text-xl font-bold {{ $classColors[$overallClassification] ?? 'text-slate-800 dark:text-white' }}">{{ $overallClassification ? ucfirst(str_replace('_', ' ', $overallClassification)) : '—' }}</p>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Overall Level</p>
+                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ $avgLMS > 0 ? $avgLMS : '—' }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Avg Mastery Score</p>
                 </div>
 
                 {{-- Average Score --}}
