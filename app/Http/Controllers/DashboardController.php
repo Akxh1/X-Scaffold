@@ -205,10 +205,8 @@ class DashboardController extends Controller
                 'avg_review_percentage' => round($performances->avg('review_percentage'), 1),
             ];
             
-            // Determine overall mastery level based on best LMS
-            $bestLMS = $overallStats['best_lms'];
-            $overallStats['mastery_level'] = $bestLMS >= 76 ? 'advanced' : 
-                ($bestLMS >= 56 ? 'proficient' : ($bestLMS >= 36 ? 'developing' : 'at_risk'));
+            // Determine overall mastery level from ML classification (best performance)
+            $overallStats['mastery_level'] = $performances->sortByDesc('learning_mastery_score')->first()->mastery_level ?? 'developing';
             
             // Aggregate XAI data across all modules
             $aggregatedXAI = [

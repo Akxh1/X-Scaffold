@@ -100,25 +100,25 @@ class MLPredictionService
         $result = $this->predict($performance);
         
         if ($result) {
-            // Map ML level (0-3) to LMS score range for consistency
+            // Get ML classification (authoritative — trained on teacher labels)
             $mlLevel = $result['prediction']['mastery_level'] ?? 1;
             $confidence = $result['prediction']['confidence'] ?? 0.5;
             
-            // Convert ML level to LMS score (center of each range with confidence adjustment)
-            // at_risk=0-35, developing=36-55, proficient=56-75, advanced=76-100
-            $lmsRanges = [
-                0 => [0, 35],    // at_risk
-                1 => [36, 55],   // developing
-                2 => [56, 75],   // proficient
-                3 => [76, 100],  // advanced
+            // Calculate real LMS using the research-backed formula (supplementary score)
+            $features = [
+                (float) ($performance->score_percentage ?? 50),
+                (float) ($performance->hard_question_accuracy ?? 50),
+                (float) ($performance->hint_usage_percentage ?? 25),
+                (float) ($performance->avg_confidence ?? 3.0),
+                (float) ($performance->answer_changes_rate ?? 0.5),
+                (float) ($performance->tab_switches_rate ?? 1.0),
+                (float) ($performance->avg_time_per_question ?? 60),
+                (float) ($performance->review_percentage ?? 30),
+                (float) ($performance->avg_first_action_latency ?? 5.0),
+                (float) ($performance->clicks_per_question ?? 5.0),
+                (float) ($performance->performance_trend ?? 0),
             ];
-            
-            $range = $lmsRanges[$mlLevel] ?? [36, 55];
-            $rangeCenter = ($range[0] + $range[1]) / 2;
-            $rangeSize = ($range[1] - $range[0]) / 2;
-            
-            // Adjust within range based on confidence
-            $performance->learning_mastery_score = round($rangeCenter + ($confidence - 0.5) * $rangeSize, 1);
+            $performance->learning_mastery_score = $this->predictLMSLocally($features);
             
             // Set mastery level name
             $levelNames = ['at_risk', 'developing', 'proficient', 'advanced'];

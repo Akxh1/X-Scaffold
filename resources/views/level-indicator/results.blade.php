@@ -12,6 +12,12 @@
 
             {{-- Header --}}
             <div class="bg-gradient-to-r {{ $moduleData['gradient'] }} rounded-3xl p-8 mb-8 relative overflow-hidden shadow-xl">
+                {{-- Info Icon --}}
+                <button onclick="document.getElementById('classificationDisclaimer').classList.toggle('hidden')" 
+                        class="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm flex items-center justify-center text-white transition-all" 
+                        title="About Classification">
+                    <i class="fas fa-info text-sm"></i>
+                </button>
                 <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                     <div>
                         <div class="flex items-center gap-4 mb-3">
@@ -25,8 +31,22 @@
                         </div>
                     </div>
                     <div class="text-center md:text-right">
-                        <div class="text-5xl font-bold text-white mb-1">{{ round($attempt->learning_mastery_score, 1) }}</div>
-                        <div class="text-white/80 text-sm">Learning Mastery Score</div>
+                        <div class="text-4xl md:text-5xl font-bold text-white mb-1">{{ $badge['label'] }}</div>
+                        <div class="text-white/70 text-sm">ML Classification</div>
+                        <div class="text-white/60 text-xs mt-1">LMS: {{ round($attempt->learning_mastery_score, 1) }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Classification Disclaimer --}}
+            <div id="classificationDisclaimer" class="hidden mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-5">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                    <div>
+                        <h4 class="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">About Your Classification</h4>
+                        <p class="text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
+                            Your <strong>mastery classification</strong> ({{ $badge['label'] }}) is determined by an XGBoost ML model trained on teacher-labelled student data. It is the <strong>authoritative</strong> assessment of your learning level. The <strong>Learning Mastery Score (LMS)</strong> is a supplementary formulaic score derived from your behavioural metrics using a research-backed formula. The ML classification may differ from what the LMS range alone would suggest, as the model captures nuances that the formula cannot.
+                        </p>
                     </div>
                 </div>
             </div>

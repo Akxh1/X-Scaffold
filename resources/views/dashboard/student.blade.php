@@ -16,6 +16,11 @@
                         <p class="mt-2 text-slate-600 dark:text-slate-400">Track your progress across all modules and assessments</p>
                     </div>
                     <div class="flex items-center gap-3">
+                        <button onclick="document.getElementById('dashboardDisclaimer').classList.toggle('hidden')" 
+                                class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center text-slate-500 dark:text-slate-400 transition-all" 
+                                title="About Classifications">
+                            <i class="fas fa-info text-xs"></i>
+                        </button>
                         @if($student)
                         <div class="hidden md:flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
                             <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
@@ -24,6 +29,15 @@
                             <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ $student->name }}</span>
                         </div>
                         @endif
+                    </div>
+                </div>
+                {{-- Classification Disclaimer --}}
+                <div id="dashboardDisclaimer" class="hidden mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                        <p class="text-sm text-blue-700 dark:text-blue-400 leading-relaxed">
+                            Your <strong>mastery classification</strong> is determined by an XGBoost ML model trained on teacher-labelled student data and is the <strong>authoritative</strong> assessment. The <strong>LMS (Learning Mastery Score)</strong> is a supplementary formulaic score. The classification may differ from what the LMS range would suggest, as the ML model captures nuances the formula cannot.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -52,15 +66,29 @@
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Assessments Done</p>
                 </div>
 
-                {{-- Average LMS --}}
+                {{-- Overall Classification --}}
+                @php
+                    $overallClassification = null;
+                    if ($completedModules > 0) {
+                        // Find dominant classification
+                        $levels = $modules->where('has_performance', true)->pluck('mastery_level')->countBy();
+                        $overallClassification = $levels->keys()->first();
+                    }
+                    $classColors = [
+                        'advanced' => 'text-emerald-600 dark:text-emerald-400',
+                        'proficient' => 'text-blue-600 dark:text-blue-400',
+                        'developing' => 'text-amber-600 dark:text-amber-400',
+                        'at_risk' => 'text-red-600 dark:text-red-400',
+                    ];
+                @endphp
                 <div class="bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl p-5 border border-slate-200 dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all">
                     <div class="flex items-center gap-3 mb-3">
                         <div class="p-2 bg-purple-100 dark:bg-purple-500/10 rounded-xl">
                             <i class="fas fa-brain text-purple-600 dark:text-purple-400"></i>
                         </div>
                     </div>
-                    <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ $avgLMS ?: '—' }}</p>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Average LMS</p>
+                    <p class="text-xl font-bold {{ $classColors[$overallClassification] ?? 'text-slate-800 dark:text-white' }}">{{ $overallClassification ? ucfirst(str_replace('_', ' ', $overallClassification)) : '—' }}</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Overall Level</p>
                 </div>
 
                 {{-- Average Score --}}
@@ -131,7 +159,7 @@
                                 @endphp
                                 <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium {{ $levelClass }}">
                                     <i class="fas fa-trophy mr-1"></i>
-                                    LMS: {{ $module['lms'] }}
+                                    {{ ucfirst(str_replace('_', ' ', $module['mastery_level'])) }}
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">

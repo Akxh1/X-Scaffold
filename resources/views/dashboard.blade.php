@@ -173,7 +173,7 @@
                     <p class="text-[10px] leading-tight text-slate-400 dark:text-slate-500 mt-2">Aggregate count of all module exams completed. Students can have multiple records.</p>
                 </div>
 
-                {{-- Average LMS --}}
+                {{-- Dominant Classification --}}
                 <div class="group bg-white dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl p-5 border border-slate-200 dark:border-slate-700/50 hover:border-purple-300 dark:hover:border-purple-500/50 transition-all duration-300 shadow-sm relative overflow-hidden">
                     <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                         <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
@@ -187,9 +187,18 @@
                             </svg>
                         </div>
                     </div>
-                    <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ number_format($averageLMS, 1) }}</p>
-                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Class Mastery Index</p>
-                    <p class="text-[10px] leading-tight text-slate-400 dark:text-slate-500 mt-2">Average Learning Mastery Score calculated from performance, behavior, and metacognition.</p>
+                    @php
+                        $dominantLevel = collect($masteryDistribution)->filter()->sortDesc()->keys()->first() ?? 'N/A';
+                        $dominantColors = [
+                            'advanced' => 'text-emerald-600 dark:text-emerald-400',
+                            'proficient' => 'text-blue-600 dark:text-blue-400',
+                            'developing' => 'text-amber-600 dark:text-amber-400',
+                            'at_risk' => 'text-red-600 dark:text-red-400',
+                        ];
+                    @endphp
+                    <p class="text-xl font-bold {{ $dominantColors[$dominantLevel] ?? 'text-slate-800 dark:text-white' }}">{{ ucfirst(str_replace('_', ' ', $dominantLevel)) }}</p>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">Dominant Classification</p>
+                    <p class="text-[10px] leading-tight text-slate-400 dark:text-slate-500 mt-2">Most common ML classification across all students and modules.</p>
                 </div>
             </div>
 
@@ -223,8 +232,19 @@
                                         <p class="text-white/80 text-sm">{{ $module['questions_count'] }} questions</p>
                                     </div>
                                 </div>
-                                <span class="px-3 py-1.5 text-sm font-bold rounded-full bg-white/20 backdrop-blur-sm text-white">
-                                    {{ $module['avg_lms'] }} LMS
+                                @php
+                                    // Find dominant classification for this module's students
+                                    $modulePerfs = $allPerformances->where('module_id', $module['id']);
+                                    $modDominantLevel = $modulePerfs->pluck('mastery_level')->countBy()->sortDesc()->keys()->first();
+                                    $modLevelColors = [
+                                        'advanced' => 'text-emerald-200',
+                                        'proficient' => 'text-blue-200',
+                                        'developing' => 'text-amber-200',
+                                        'at_risk' => 'text-red-200',
+                                    ];
+                                @endphp
+                                <span class="px-3 py-1.5 text-sm font-bold rounded-full bg-white/20 backdrop-blur-sm {{ $modLevelColors[$modDominantLevel] ?? 'text-white' }}">
+                                    {{ $modDominantLevel ? ucfirst(str_replace('_', ' ', $modDominantLevel)) : 'No Data' }}
                                 </span>
                             </div>
                         </div>
@@ -419,7 +439,7 @@
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Student</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Modules</th>
-                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Best LMS</th>
+                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Classification</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Avg Score</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Overall Level</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
@@ -432,7 +452,8 @@
                                     $hasPerformance = $performances->isNotEmpty();
                                     $bestLMS = $hasPerformance ? $performances->max('learning_mastery_score') : null;
                                     $avgScore = $hasPerformance ? $performances->avg('score_percentage') : null;
-                                    $overallLevel = $hasPerformance ? ($bestLMS >= 76 ? 'advanced' : ($bestLMS >= 56 ? 'proficient' : ($bestLMS >= 36 ? 'developing' : 'at_risk'))) : null;
+                                    // Use ML classification directly instead of deriving from LMS range
+                                    $overallLevel = $hasPerformance ? $performances->sortByDesc('learning_mastery_score')->first()->mastery_level : null;
                                 @endphp
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors student-row" 
                                     data-status="{{ $hasPerformance ? 'completed' : 'pending' }}">
@@ -474,16 +495,20 @@
                                         @endif
                                     </td>
 
-                                    {{-- Best LMS --}}
+                                    {{-- Classification --}}
                                     <td class="px-6 py-4 text-center">
                                         @if($hasPerformance)
-                                            <span class="text-lg font-bold 
-                                                @if($overallLevel === 'advanced') text-emerald-600 dark:text-emerald-400
-                                                @elseif($overallLevel === 'proficient') text-blue-600 dark:text-blue-400
-                                                @elseif($overallLevel === 'developing') text-amber-600 dark:text-amber-400
-                                                @else text-red-600 dark:text-red-400
-                                                @endif
-                                            ">{{ number_format($bestLMS, 1) }}</span>
+                                            @php
+                                                $clBadge = [
+                                                    'advanced' => ['bg' => 'bg-emerald-100 dark:bg-emerald-500/10', 'text' => 'text-emerald-700 dark:text-emerald-400', 'icon' => '🏆'],
+                                                    'proficient' => ['bg' => 'bg-blue-100 dark:bg-blue-500/10', 'text' => 'text-blue-700 dark:text-blue-400', 'icon' => '📘'],
+                                                    'developing' => ['bg' => 'bg-amber-100 dark:bg-amber-500/10', 'text' => 'text-amber-700 dark:text-amber-400', 'icon' => '📙'],
+                                                    'at_risk' => ['bg' => 'bg-red-100 dark:bg-red-500/10', 'text' => 'text-red-700 dark:text-red-400', 'icon' => '⚠️'],
+                                                ][$overallLevel] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'icon' => '📊'];
+                                            @endphp
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $clBadge['bg'] }} {{ $clBadge['text'] }}">
+                                                {{ $clBadge['icon'] }} {{ ucfirst(str_replace('_', ' ', $overallLevel)) }}
+                                            </span>
                                         @else
                                             <span class="text-slate-400 dark:text-slate-500">—</span>
                                         @endif

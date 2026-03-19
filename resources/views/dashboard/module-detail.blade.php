@@ -42,7 +42,7 @@
                     <i class="fas fa-chart-pie text-indigo-500"></i>
                     Your Performance Summary
                 </h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                         <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ round($performance->score_percentage, 1) }}%</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Score</p>
@@ -55,16 +55,6 @@
                                 'developing' => 'text-amber-600 dark:text-amber-400',
                                 'at_risk' => 'text-red-600 dark:text-red-400',
                             ];
-                        @endphp
-                        <p class="text-2xl font-bold {{ $lmsColors[$performance->mastery_level] ?? 'text-slate-800' }}">{{ round($performance->learning_mastery_score, 1) }}</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">LMS Score</p>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
-                        <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ round($performance->avg_confidence, 1) }}/5</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Confidence</p>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
-                        @php
                             $levelBadges = [
                                 'advanced' => ['bg' => 'bg-emerald-100 dark:bg-emerald-500/10', 'text' => 'text-emerald-700 dark:text-emerald-400', 'icon' => '🏆'],
                                 'proficient' => ['bg' => 'bg-blue-100 dark:bg-blue-500/10', 'text' => 'text-blue-700 dark:text-blue-400', 'icon' => '📘'],
@@ -74,8 +64,17 @@
                             $badge = $levelBadges[$performance->mastery_level] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'icon' => '📊'];
                         @endphp
                         <p class="text-2xl">{{ $badge['icon'] }}</p>
-                        <p class="text-xs {{ $badge['text'] }} font-medium mt-1">{{ ucfirst(str_replace('_', ' ', $performance->mastery_level)) }}</p>
+                        <p class="text-xs {{ $badge['text'] }} font-semibold mt-1">{{ ucfirst(str_replace('_', ' ', $performance->mastery_level)) }}</p>
                     </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
+                        <p class="text-lg font-bold {{ $lmsColors[$performance->mastery_level] ?? 'text-slate-800' }}">{{ round($performance->learning_mastery_score, 1) }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">LMS Score</p>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
+                        <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ round($performance->avg_confidence, 1) }}/5</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Confidence</p>
+                    </div>
+
                 </div>
             </div>
             @endif
@@ -112,7 +111,7 @@
                             </div>
                             <div class="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                 <i class="fas fa-brain text-blue-500"></i>
-                                <span>Generates your LMS (Learning Mastery Score)</span>
+                                <span>Generates your learning classification</span>
                             </div>
                         </div>
 
@@ -128,7 +127,7 @@
                                 <span class="text-sm text-green-700 dark:text-green-400 font-medium">
                                     Completed ({{ $attemptCount }}/{{ $maxAttempts }} attempts)
                                 </span>
-                                <span class="text-sm text-green-600 dark:text-green-300 ml-auto">LMS: {{ round($performance->learning_mastery_score, 1) }}</span>
+                                <span class="text-sm text-green-600 dark:text-green-300 ml-auto">{{ ucfirst(str_replace('_', ' ', $performance->mastery_level)) }}</span>
                             </div>
                             <div class="flex gap-3">
                                 <a href="{{ route('level-indicator.show', $module) }}" 

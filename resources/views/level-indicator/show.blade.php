@@ -57,17 +57,17 @@
                 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
+                        @php $badge = $latestAttempt->getMasteryBadge(); @endphp
+                        <p class="text-2xl">{{ $badge['icon'] }}</p>
+                        <p class="text-xs {{ $badge['text'] }} font-semibold mt-1">{{ $badge['label'] }}</p>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                         <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ round($latestAttempt->score_percentage, 1) }}%</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Score</p>
                     </div>
                     <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
-                        @php $badge = $latestAttempt->getMasteryBadge(); @endphp
                         <p class="text-2xl font-bold {{ $badge['text'] }}">{{ round($latestAttempt->learning_mastery_score, 1) }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">LMS Score</p>
-                    </div>
-                    <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
-                        <p class="text-2xl">{{ $badge['icon'] }}</p>
-                        <p class="text-xs {{ $badge['text'] }} font-medium mt-1">{{ $badge['label'] }}</p>
                     </div>
                     <div class="bg-slate-50 dark:bg-slate-700/30 rounded-xl p-4 text-center">
                         <p class="text-2xl font-bold text-slate-800 dark:text-white">{{ round($latestAttempt->ml_prediction_confidence * 100) }}%</p>
@@ -109,7 +109,7 @@
                             </div>
                             <div class="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                 <i class="fas fa-lightbulb text-blue-500 w-5"></i>
-                                <span>AI-powered hints available (affects LMS calculation)</span>
+                                <span>AI-powered hints available (affects classification)</span>
                             </div>
                         </div>
                         
