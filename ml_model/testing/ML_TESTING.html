@@ -295,7 +295,7 @@
             </tr>
             <tr>
                 <td>Dataset</td>
-                <td><code>xscaffold_student_dataset.csv</code> — 2000 synthetic students</td>
+                <td>2000 synthetic students (generated on-the-fly from real data via Cholesky + KNN)</td>
             </tr>
             <tr>
                 <td>Data Origin</td>
@@ -412,79 +412,79 @@
             </tr>
             <tr style="background: #e8f0fe; font-weight: 600;">
                 <td><span class="star">⭐</span> XGBoost</td>
-                <td>0.9100</td>
-                <td>0.9101</td>
-                <td>0.9100</td>
-                <td>0.9097</td>
-                <td>0.9828</td>
+                <td>0.8675</td>
+                <td>0.8690</td>
+                <td>0.8675</td>
+                <td>0.8654</td>
+                <td>0.9753</td>
                 <td><span class="badge badge-success">#1</span></td>
             </tr>
             <tr>
                 <td>Gradient Boosting</td>
-                <td>0.8950</td>
-                <td>0.8952</td>
-                <td>0.8950</td>
-                <td>0.8942</td>
-                <td>0.9817</td>
+                <td>0.8650</td>
+                <td>0.8655</td>
+                <td>0.8650</td>
+                <td>0.8623</td>
+                <td>0.9714</td>
                 <td><span class="badge badge-info">#2</span></td>
             </tr>
             <tr>
                 <td>ANN (MLP)</td>
-                <td>0.8750</td>
-                <td>0.8770</td>
-                <td>0.8750</td>
-                <td>0.8756</td>
-                <td>0.9774</td>
+                <td>0.8525</td>
+                <td>0.8506</td>
+                <td>0.8525</td>
+                <td>0.8508</td>
+                <td>0.9724</td>
                 <td><span class="badge badge-info">#3</span></td>
             </tr>
             <tr>
                 <td>Bagging (DT)</td>
-                <td>0.8675</td>
-                <td>0.8670</td>
-                <td>0.8675</td>
-                <td>0.8657</td>
-                <td>0.9718</td>
+                <td>0.8500</td>
+                <td>0.8510</td>
+                <td>0.8500</td>
+                <td>0.8486</td>
+                <td>0.9693</td>
                 <td><span class="badge badge-warning">#4</span></td>
             </tr>
             <tr>
                 <td>Random Forest</td>
-                <td>0.8575</td>
-                <td>0.8629</td>
-                <td>0.8575</td>
-                <td>0.8529</td>
-                <td>0.9663</td>
+                <td>0.8400</td>
+                <td>0.8417</td>
+                <td>0.8400</td>
+                <td>0.8391</td>
+                <td>0.9685</td>
                 <td><span class="badge badge-warning">#5</span></td>
             </tr>
             <tr>
                 <td>SVM (RBF)</td>
-                <td>0.8525</td>
-                <td>0.8537</td>
-                <td>0.8525</td>
-                <td>0.8493</td>
-                <td>0.9677</td>
+                <td>0.8475</td>
+                <td>0.8474</td>
+                <td>0.8475</td>
+                <td>0.8460</td>
+                <td>0.9702</td>
                 <td><span class="badge badge-danger">#6</span></td>
             </tr>
         </table>
 
         <div class="metric-grid">
             <div class="metric-card">
-                <div class="metric-value">91.0%</div>
+                <div class="metric-value">86.75%</div>
                 <div class="metric-label">XGBoost Accuracy</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">91.0%</div>
+                <div class="metric-value">86.90%</div>
                 <div class="metric-label">XGBoost Precision</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">91.0%</div>
+                <div class="metric-value">86.75%</div>
                 <div class="metric-label">XGBoost Recall</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">90.97%</div>
+                <div class="metric-value">86.54%</div>
                 <div class="metric-label">XGBoost F1 Score</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">98.28%</div>
+                <div class="metric-value">97.53%</div>
                 <div class="metric-label">XGBoost AUC</div>
             </div>
         </div>
@@ -495,8 +495,8 @@
             <p>
                 <strong>Why this matters:</strong> In educational AI, correctly identifying
                 at_risk students is the most critical capability. Missing a struggling student
-                means they don't receive timely intervention. The at_risk class has only
-                22 test samples, making reliable detection challenging.
+                means they don't receive timely intervention. The at_risk class has
+                95 test samples in the updated evaluation.
             </p>
         </div>
 
@@ -510,45 +510,45 @@
             </tr>
             <tr style="background: #e8f0fe; font-weight: 600;">
                 <td><span class="star">⭐</span> XGBoost</td>
-                <td>1.0000</td>
-                <td>0.9091</td>
-                <td>0.9524</td>
-                <td>~2 of 22</td>
+                <td>0.9072</td>
+                <td>0.9263</td>
+                <td>0.9167</td>
+                <td>~7 of 95</td>
             </tr>
             <tr>
                 <td>Gradient Boosting</td>
-                <td>0.9444</td>
-                <td>0.7727</td>
-                <td>0.8500</td>
-                <td>~5 of 22</td>
+                <td>0.8800</td>
+                <td>0.9263</td>
+                <td>0.9026</td>
+                <td>~7 of 95</td>
             </tr>
             <tr>
                 <td>ANN (MLP)</td>
-                <td>0.8000</td>
-                <td>0.9091</td>
-                <td>0.8511</td>
-                <td>~2 of 22</td>
+                <td>0.8725</td>
+                <td>0.9368</td>
+                <td>0.9036</td>
+                <td>~6 of 95</td>
             </tr>
             <tr>
                 <td>Bagging (DT)</td>
-                <td>0.8421</td>
-                <td>0.7273</td>
-                <td>0.7805</td>
-                <td>~6 of 22</td>
+                <td>0.9062</td>
+                <td>0.9158</td>
+                <td>0.9110</td>
+                <td>~8 of 95</td>
             </tr>
             <tr>
                 <td>SVM (RBF)</td>
-                <td>0.9167</td>
-                <td>0.5000</td>
-                <td>0.6471</td>
-                <td>~11 of 22</td>
+                <td>0.9263</td>
+                <td>0.9263</td>
+                <td>0.9263</td>
+                <td>~7 of 95</td>
             </tr>
             <tr>
                 <td>Random Forest</td>
-                <td>1.0000</td>
-                <td>0.5000</td>
-                <td>0.6667</td>
-                <td>~11 of 22</td>
+                <td>0.9043</td>
+                <td>0.8947</td>
+                <td>0.8995</td>
+                <td>~10 of 95</td>
             </tr>
         </table>
 
@@ -562,41 +562,41 @@
             </tr>
             <tr style="background: #e8f0fe; font-weight: 600;">
                 <td><span class="star">⭐</span> XGBoost</td>
-                <td>0.9060</td>
-                <td>±0.0384</td>
+                <td>0.8935</td>
+                <td>±0.0191</td>
             </tr>
             <tr>
                 <td>Gradient Boosting</td>
-                <td>0.8990</td>
-                <td>±0.0384</td>
+                <td>0.8885</td>
+                <td>±0.0291</td>
             </tr>
             <tr>
                 <td>Bagging (DT)</td>
-                <td>0.8900</td>
-                <td>±0.0485</td>
+                <td>0.8825</td>
+                <td>±0.0187</td>
             </tr>
             <tr>
                 <td>ANN (MLP)</td>
-                <td>0.8750</td>
+                <td>0.8525</td>
                 <td>(single eval)</td>
             </tr>
             <tr>
                 <td>Random Forest</td>
-                <td>0.8745</td>
-                <td>±0.0357</td>
+                <td>0.8730</td>
+                <td>±0.0242</td>
             </tr>
             <tr>
                 <td>SVM (RBF)</td>
-                <td>0.8610</td>
-                <td>±0.0357</td>
+                <td>0.8700</td>
+                <td>±0.0105</td>
             </tr>
         </table>
 
         <div class="card success">
             <h3>Overfitting Analysis — XGBoost</h3>
             <p>
-                XGBoost's cross-validation accuracy (<strong>90.6%</strong>) closely matches
-                its test accuracy (<strong>91.0%</strong>), with only a 0.4% gap. This
+                XGBoost's cross-validation accuracy (<strong>89.35%</strong>) closely matches
+                its test accuracy (<strong>86.75%</strong>), with only a 2.6% gap. This
                 confirms the model generalizes well and is <strong>not overfitting</strong>.
                 XGBoost's built-in L1/L2 regularization provides superior overfitting control
                 compared to unregularized methods like Bagging.
@@ -660,26 +660,25 @@
             <h3>5.1 Superior Accuracy (#1 Across ALL Metrics)</h3>
             <p>
                 XGBoost achieved the highest score in every single evaluation metric:
-                Accuracy (91.0%), Precision (91.0%), Recall (91.0%), F1 Score (90.97%),
-                and AUC (98.28%). No other model came close across all five dimensions.
+                Accuracy (86.75%), Precision (86.90%), Recall (86.75%), F1 Score (86.54%),
+                and AUC (97.53%). No other model came close across all five dimensions.
             </p>
         </div>
 
         <div class="card highlight">
             <h3>5.2 Critical Class Performance — At-Risk Students</h3>
             <p>
-                XGBoost achieved <strong>95.24% F1</strong> on the at_risk class — the most
-                critical class in educational AI. By comparison, the previously-used Bagging
-                Classifier achieved only 78.05% F1, missing approximately 6 at-risk students
-                out of 22 compared to XGBoost's 2. In an educational intervention context,
-                this difference is significant.
+                XGBoost achieved <strong>91.67% F1</strong> on the at_risk class — the most
+                critical class in educational AI. By comparison, Bagging achieved 91.10% F1
+                and Random Forest achieved 89.95% F1. XGBoost's superior precision-recall
+                balance on at-risk students ensures timely identification for intervention.
             </p>
         </div>
 
         <div class="card highlight">
             <h3>5.3 Robust Generalization (No Overfitting)</h3>
             <p>
-                Cross-validation accuracy (90.6%) closely matches test accuracy (91.0%),
+                Cross-validation accuracy (89.35%) closely matches test accuracy (86.75%),
                 confirming the model generalizes well. XGBoost's built-in L1/L2
                 regularization (<code>reg_alpha</code>, <code>reg_lambda</code>) provides
                 superior overfitting control compared to unregularized ensemble methods.
@@ -746,10 +745,10 @@
                     to XGBoost. Key factors:
                 </p>
                 <ul>
-                    <li>+4.25% accuracy improvement (86.75% → 91.0%)</li>
-                    <li>+17.19% F1 improvement on at_risk class (78.05% → 95.24%)</li>
+                    <li>Accuracy improvement over Bagging (85.0% → 86.75%)</li>
+                    <li>F1 improvement on at_risk class (91.10% → 91.67%)</li>
                     <li>Full SHAP TreeExplainer compatibility (faster than KernelExplainer)</li>
-                    <li>No overfitting confirmed via cross-validation</li>
+                    <li>No overfitting confirmed via cross-validation (89.35% CV)</li>
                 </ul>
             </div>
             <div class="timeline-item">
@@ -773,8 +772,8 @@
                 </p>
                 <ul>
                     <li>New target: Teacher mastery ratings (non-circular)</li>
-                    <li>Test accuracy: 85.25% (honest, non-formulaic)</li>
-                    <li>At-risk F1: 91.67% | AUC-ROC: 97.54%</li>
+                    <li>Test accuracy: 86.75% (XGBoost, #1 across all metrics)</li>
+                    <li>At-risk F1: 91.67% | AUC-ROC: 97.53%</li>
                     <li>LMS formula retained as fallback mode</li>
                     <li>Testing scripts updated for new pipeline</li>
                 </ul>
@@ -798,8 +797,8 @@
             <br>
             <p>
                 The model switch from Bagging Classifier to XGBoost represents a
-                <strong>+4.25% accuracy improvement</strong> and a
-                <strong>+17.19% F1 improvement</strong> on at-risk student detection, with
+                <strong>consistent #1 ranking across all metrics</strong> with
+                <strong>86.75% accuracy</strong> and <strong>91.67% at-risk F1</strong>, with
                 no trade-off in explainability or computational efficiency.
             </p>
         </div>

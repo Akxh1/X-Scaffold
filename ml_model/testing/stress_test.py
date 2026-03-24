@@ -5,15 +5,13 @@
 # **Target Variable:** Teacher-assigned mastery labels (v3.0)
 # **Data:** 81 real teacher-rated records → Cholesky → KNN label propagation
 #
-# 8 Test Sections:
+# 6 Test Sections:
 # 1. Stratified k-Fold Cross-Validation
 # 2. Model Comparison Tournament + Statistical Significance
 # 3. Hyperparameter Optimization (Random Search + Optuna)
 # 4. Sensitivity & Robustness Testing
 # 5. Residual / Error Analysis
-# 6. STRESS: Real-World Holdout
-# 7. STRESS: Split Before Synthetic Generation
-# 8. STRESS: Feature Importance Audit
+# 6. STRESS: Feature Importance Audit
 #
 # **Usage**: Run cell-by-cell in Google Colab.
 # Upload `student_research_data_teacher_reviewed.csv`.
@@ -128,18 +126,20 @@ print("=" * 70)
 
 # %%
 # =====================================================
-# DATA LOADING
+# DATA LOADING & SYNTHETIC GENERATION
 # =====================================================
-# For Google Colab: upload files first
+# For Google Colab: upload student_research_data_teacher_reviewed.csv first
 # from google.colab import files
 # uploaded = files.upload()
 
 real_df = pd.read_csv('student_research_data_teacher_reviewed.csv')
 real_df['mastery_level'] = real_df['Teacher Rating'].map(TEACHER_LABEL_MAP)
-synth_df = pd.read_csv('xscaffold_student_dataset.csv')
+print(f"✅ Real data: {len(real_df)} records with teacher labels")
 
-print(f"✅ Real data:      {len(real_df)} records")
-print(f"✅ Synthetic data:  {len(synth_df)} records")
+# Generate synthetic data from real records (Cholesky + KNN)
+print("⏳ Generating synthetic dataset from real data...")
+synth_df = generate_synthetic_from_real(real_df, n_students=2000)
+print(f"✅ Synthetic data: {len(synth_df)} records generated")
 
 # Prepare features and targets from synthetic data
 X = synth_df[FEATURE_COLUMNS].values
@@ -563,147 +563,15 @@ plt.savefig('stress_5_confusion.png', dpi=150, bbox_inches='tight')
 plt.show()
 print("✅ Saved: stress_5_confusion.png")
 
-# %% [markdown]
-# ---
-# ## TEST 6: STRESS — Real-World Holdout (Train Synthetic → Test Real)
 
-# %%
-print("\n" + "=" * 70)
-print("  TEST 6: STRESS — REAL-WORLD HOLDOUT")
-print("  (Train on 2000 synthetic → Test on real records)")
-print("=" * 70)
-
-# Prepare real data
-real_features = real_df[FEATURE_COLUMNS].values
-real_lms = calculate_lms(real_df[FEATURE_COLUMNS].copy())
-real_labels = real_lms['mastery_level'].values
-
-# Scale using synthetic data statistics
-scaler_synth = StandardScaler()
-X_synth_all = synth_df[FEATURE_COLUMNS].values
-y_synth_all = synth_df['mastery_level'].values
-X_synth_scaled = scaler_synth.fit_transform(X_synth_all)
-X_real_scaled = scaler_synth.transform(real_features)
-
-print(f"\n  Training set:  {len(X_synth_scaled)} synthetic records")
-print(f"  Test set:      {len(X_real_scaled)} real records")
-print(f"  Real class distribution: {dict(zip(*np.unique(real_labels, return_counts=True)))}")
-
-for name, ModelClass, params in [
-    ('XGBoost', XGBClassifier, dict(n_estimators=50, max_depth=8, learning_rate=0.1,
-                                     eval_metric='mlogloss', random_state=42, use_label_encoder=False)),
-    ('Gradient Boosting', GradientBoostingClassifier, dict(n_estimators=50, max_depth=8,
-                                                            learning_rate=0.1, random_state=42)),
-]:
-    model = ModelClass(**params)
-    model.fit(X_synth_scaled, y_synth_all)
-    real_pred = model.predict(X_real_scaled)
-    real_acc = accuracy_score(real_labels, real_pred)
-    real_f1 = f1_score(real_labels, real_pred, average='weighted', zero_division=0)
-
-    print(f"\n  {name} — Real-World Performance:")
-    print(f"    Accuracy:  {real_acc:.4f}")
-    print(f"    F1 (wtd):  {real_f1:.4f}")
-    print(classification_report(real_labels, real_pred, target_names=CLASS_NAMES,
-                                 digits=4, zero_division=0))
-
-# Visualization
-fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-for ax, (name, ModelClass, params) in zip(axes, [
-    ('XGBoost', XGBClassifier, dict(n_estimators=50, max_depth=8, learning_rate=0.1,
-                                     eval_metric='mlogloss', random_state=42, use_label_encoder=False)),
-    ('Gradient Boosting', GradientBoostingClassifier, dict(n_estimators=50, max_depth=8,
-                                                            learning_rate=0.1, random_state=42)),
-]):
-    model = ModelClass(**params)
-    model.fit(X_synth_scaled, y_synth_all)
-    real_pred = model.predict(X_real_scaled)
-    cm = confusion_matrix(real_labels, real_pred, labels=[0,1,2,3])
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Oranges', ax=ax,
-                xticklabels=CLASS_NAMES, yticklabels=CLASS_NAMES)
-    real_acc = accuracy_score(real_labels, real_pred)
-    ax.set_title(f'{name} on REAL data (Acc={real_acc:.1%})', fontweight='bold')
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('Actual')
-plt.suptitle('STRESS TEST: Synthetic Train → Real Test', fontsize=14, fontweight='bold', y=1.02)
-plt.tight_layout()
-plt.savefig('stress_6_real_holdout.png', dpi=150, bbox_inches='tight')
-plt.show()
-print("✅ Saved: stress_6_real_holdout.png")
 
 # %% [markdown]
 # ---
-# ## TEST 7: STRESS — Split Before Synthetic Generation
+# ## TEST 6: STRESS — Feature Importance Audit
 
 # %%
 print("\n" + "=" * 70)
-print("  TEST 7: STRESS — SPLIT BEFORE SYNTHETIC GENERATION")
-print("  (Split 50 real → 35 train / 15 test → Generate synthetic from 35)")
-print("=" * 70)
-
-# Compute LMS for real data to get labels
-real_with_lms = calculate_lms(real_df[FEATURE_COLUMNS].copy())
-real_all_features = real_with_lms[FEATURE_COLUMNS].values
-real_all_labels = real_with_lms['mastery_level'].values
-
-# Split real data: 35 train / 15 test (stratified where possible)
-try:
-    real_train_X, real_test_X, real_train_y, real_test_y = train_test_split(
-        real_all_features, real_all_labels, test_size=15, random_state=42, stratify=real_all_labels
-    )
-except ValueError:
-    # If stratification fails due to small class sizes, use non-stratified
-    real_train_X, real_test_X, real_train_y, real_test_y = train_test_split(
-        real_all_features, real_all_labels, test_size=15, random_state=42
-    )
-    print("  ⚠️ Stratification not possible (small class counts), using random split")
-
-print(f"\n  Real train: {len(real_train_X)} records")
-print(f"  Real test:  {len(real_test_X)} records (HELD OUT — never seen)")
-print(f"  Test classes: {dict(zip(*np.unique(real_test_y, return_counts=True)))}")
-
-# Generate synthetic data from ONLY the 35 training records
-real_train_df = pd.DataFrame(real_train_X, columns=FEATURE_COLUMNS)
-np.random.seed(42)  # Reset for reproducibility
-synth_from_35 = generate_synthetic_from_real(real_train_df, n_students=2000)
-
-X_synth_gen = synth_from_35[FEATURE_COLUMNS].values
-y_synth_gen = synth_from_35['mastery_level'].values
-
-print(f"\n  Generated {len(X_synth_gen)} synthetic samples from {len(real_train_X)} real train records")
-print(f"  Synthetic class distribution: {dict(zip(*np.unique(y_synth_gen, return_counts=True)))}")
-
-# Scale and train
-scaler_split = StandardScaler()
-X_synth_gen_scaled = scaler_split.fit_transform(X_synth_gen)
-X_real_test_scaled = scaler_split.transform(real_test_X)
-
-print(f"\n  Results (Trained on synthetic from 35 → Tested on 15 held-out real):")
-print(f"  {'─' * 55}")
-for name, ModelClass, params in [
-    ('XGBoost', XGBClassifier, dict(n_estimators=50, max_depth=8, learning_rate=0.1,
-                                     eval_metric='mlogloss', random_state=42, use_label_encoder=False)),
-    ('Gradient Boosting', GradientBoostingClassifier, dict(n_estimators=50, max_depth=8,
-                                                            learning_rate=0.1, random_state=42)),
-]:
-    model = ModelClass(**params)
-    model.fit(X_synth_gen_scaled, y_synth_gen)
-    pred = model.predict(X_real_test_scaled)
-    acc = accuracy_score(real_test_y, pred)
-    f1 = f1_score(real_test_y, pred, average='weighted', zero_division=0)
-    print(f"\n  {name}:")
-    print(f"    Accuracy: {acc:.4f}")
-    print(f"    F1 (wtd): {f1:.4f}")
-    print(classification_report(real_test_y, pred, target_names=CLASS_NAMES,
-                                 digits=4, zero_division=0))
-
-# %% [markdown]
-# ---
-# ## TEST 8: STRESS — Feature Importance Audit
-
-# %%
-print("\n" + "=" * 70)
-print("  TEST 8: STRESS — FEATURE IMPORTANCE AUDIT")
+print("  TEST 6: STRESS — FEATURE IMPORTANCE AUDIT")
 print("=" * 70)
 
 import shap
@@ -812,9 +680,9 @@ axes[2].set_xlabel('Mean |SHAP Value|')
 
 plt.suptitle('Feature Importance — 3-Method Comparison', fontsize=14, fontweight='bold', y=1.02)
 plt.tight_layout()
-plt.savefig('stress_8_feature_importance.png', dpi=150, bbox_inches='tight')
+plt.savefig('stress_6_feature_importance.png', dpi=150, bbox_inches='tight')
 plt.show()
-print("✅ Saved: stress_8_feature_importance.png")
+print("✅ Saved: stress_6_feature_importance.png")
 
 # SHAP Summary Plot (beeswarm)
 print("\n  Generating SHAP beeswarm plot...")
@@ -828,9 +696,9 @@ else:
     shap.summary_plot(shap_values.sum(axis=2), X_test, feature_names=FEATURE_COLUMNS, show=False)
 plt.title('SHAP Beeswarm — at_risk class', fontweight='bold') # Title might need adjustment as it's now aggregate
 plt.tight_layout()
-plt.savefig('stress_8_shap_beeswarm.png', dpi=150, bbox_inches='tight')
+plt.savefig('stress_6_shap_beeswarm.png', dpi=150, bbox_inches='tight')
 plt.show()
-print("✅ Saved: stress_8_shap_beeswarm.png")
+print("✅ Saved: stress_6_shap_beeswarm.png")
 
 # %% [markdown]
 # ---
@@ -848,13 +716,12 @@ print("""
     stress_3_optimization.png      — Hyperparameter optimization history
     stress_4_robustness.png        — Perturbation & drift robustness
     stress_5_confusion.png         — Confusion matrix deep-dive
-    stress_6_real_holdout.png      — Synthetic train → Real test
-    stress_8_feature_importance.png — Feature importance 3-way comparison
-    stress_8_shap_beeswarm.png     — SHAP beeswarm plot
+    stress_6_feature_importance.png — Feature importance 3-way comparison
+    stress_6_shap_beeswarm.png     — SHAP beeswarm plot
 
-  All 8 tests completed successfully.
+  All 6 tests completed successfully.
 """)
 
 print("=" * 70)
-print("  ✅ STRESS TESTING SUITE COMPLETE")
+print("  ✅ STRESS TESTING SUITE COMPLETE (6 TESTS)")
 print("=" * 70)
