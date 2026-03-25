@@ -2,7 +2,7 @@
 X-Scaffold ML Quick Start Script
 ==================================
 Run this script to set up the complete ML pipeline:
-1. Generate synthetic dataset (from 81 teacher-labelled real records)
+1. Generate dataset (from 81 teacher-labelled real records)
 2. Train XGBoost Classifier (teacher-labelled target variable)
 3. Verify model works
 

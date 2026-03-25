@@ -27,8 +27,7 @@ Research Justification:
 - Natively compatible with SHAP TreeExplainer for XAI
 - Industry standard for tabular/structured data classification
 
-Author: X-Scaffold Research Team
-Date: March 2026 (Updated — teacher-labelled target variable)
+Date: March 2026 (teacher-labelled target variable)
 """
 
 import numpy as np
