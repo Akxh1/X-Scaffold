@@ -1,6 +1,6 @@
 # Code of Conduct
 
-## Our Pledge
+## My Pledge
 
 I as a contributor and maintainer of X-Scaffold pledge to make participation in our project a harassment-free experience for everyone.
 
