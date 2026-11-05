@@ -51,6 +51,15 @@ X-Scaffold addresses this gap through a unified **Predict-Explain-Act** pipeline
 | **Explain** | SHAP (XAI Layer) | Generates human-readable factor breakdowns so instructors understand the reasoning behind each prediction |
 | **Act** | Gemini LLM | Delivers personalised, level-appropriate hints to students and produces strategic insights for instructors |
 
+### Research Demo
+
+<div align="center">
+  <a href="https://youtu.be/6D69IDHaoa8" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.youtube.com/vi/6D69IDHaoa8/maxresdefault.jpg" alt="X-Scaffold Research Demo Video" width="80%" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
+  </a>
+  <p><em>Click the preview above to watch the research demo on YouTube.</em></p>
+</div>
+
 ---
 
 ## Architecture

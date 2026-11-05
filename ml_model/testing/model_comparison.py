@@ -129,7 +129,7 @@ print(f"\nTeacher label distribution:")
 print(real_df['Teacher Rating'].value_counts().sort_index())
 
 # %%
-# --------------- GENERATE SYNTHETIC DATA (Cholesky + KNN) ---------------
+# --------------- Augmented DATA (Cholesky + KNN) ---------------
 np.random.seed(42)
 N_STUDENTS = 2000
 

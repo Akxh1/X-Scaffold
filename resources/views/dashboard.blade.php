@@ -439,7 +439,7 @@
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Student</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Modules</th>
-                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Classification</th>
+                                <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Highest ML Classification</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Avg Score</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Overall Level</th>
                                 <th class="px-6 py-4 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Actions</th>
@@ -450,10 +450,20 @@
                                 @php
                                     $performances = $student->modulePerformances;
                                     $hasPerformance = $performances->isNotEmpty();
-                                    $bestLMS = $hasPerformance ? $performances->max('learning_mastery_score') : null;
                                     $avgScore = $hasPerformance ? $performances->avg('score_percentage') : null;
-                                    // Use ML classification directly instead of deriving from LMS range
-                                    $overallLevel = $hasPerformance ? $performances->sortByDesc('learning_mastery_score')->first()->mastery_level : null;
+                                    $avgLMS = $hasPerformance ? $performances->avg('learning_mastery_score') : null;
+                                    
+                                    if ($hasPerformance) {
+                                        if ($avgLMS >= 76) $overallLevel = 'advanced';
+                                        elseif ($avgLMS >= 56) $overallLevel = 'proficient';
+                                        elseif ($avgLMS >= 36) $overallLevel = 'developing';
+                                        else $overallLevel = 'at_risk';
+                                        
+                                        $highestClassification = $performances->sortByDesc('learning_mastery_score')->first()->mastery_level;
+                                    } else {
+                                        $overallLevel = null;
+                                        $highestClassification = null;
+                                    }
                                 @endphp
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors student-row" 
                                     data-status="{{ $hasPerformance ? 'completed' : 'pending' }}">
@@ -504,10 +514,10 @@
                                                     'proficient' => ['bg' => 'bg-blue-100 dark:bg-blue-500/10', 'text' => 'text-blue-700 dark:text-blue-400', 'icon' => '📘'],
                                                     'developing' => ['bg' => 'bg-amber-100 dark:bg-amber-500/10', 'text' => 'text-amber-700 dark:text-amber-400', 'icon' => '📙'],
                                                     'at_risk' => ['bg' => 'bg-red-100 dark:bg-red-500/10', 'text' => 'text-red-700 dark:text-red-400', 'icon' => '⚠️'],
-                                                ][$overallLevel] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'icon' => '📊'];
+                                                ][$highestClassification] ?? ['bg' => 'bg-gray-100', 'text' => 'text-gray-600', 'icon' => '📊'];
                                             @endphp
                                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ $clBadge['bg'] }} {{ $clBadge['text'] }}">
-                                                {{ $clBadge['icon'] }} {{ ucfirst(str_replace('_', ' ', $overallLevel)) }}
+                                                {{ $clBadge['icon'] }} {{ ucfirst(str_replace('_', ' ', $highestClassification)) }}
                                             </span>
                                         @else
                                             <span class="text-slate-400 dark:text-slate-500">—</span>
